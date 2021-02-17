@@ -1,1 +1,1 @@
-samson ansible_ssh_host=samson.local ansible_ssh_port=22 ansible_user=root
+samson ansible_ssh_host=samson.local ansible_ssh_port=22 ansible_user=root 
