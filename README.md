@@ -1,0 +1,2 @@
+# samson
+Vagrant + ansible deployment
