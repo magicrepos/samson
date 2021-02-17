@@ -1,0 +1,119 @@
+- name: Samson deployment
+  hosts: samson
+  gather_facts: False
+  vars:
+
+   nginxvhost: |
+     server {
+     listen *:80;
+     server_name _default;
+     location / {
+     proxy_pass http://127.0.0.1:8888;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+     }
+     }
+
+   ports: |
+     Listen 8888
+     <IfModule ssl_module>
+     Listen 443
+     </IfModule>
+     <IfModule mod_gnutls.c>
+     Listen 443
+     </IfModule>
+
+   apache2defaultvhost: |
+     <VirtualHost *:8888>
+     #ServerName www.example.com
+     ServerAdmin webmaster@localhost
+     DocumentRoot /var/www/html
+     DirectoryIndex index.php
+     ErrorLog ${APACHE_LOG_DIR}/error.log
+     CustomLog ${APACHE_LOG_DIR}/access.log combined
+     #Include conf-available/serve-cgi-bin.conf
+     </VirtualHost>
+   
+   indexphp: |
+     <?php
+     phpinfo();
+     ?>
+
+   phprepoadd: deb https://packages.sury.org/php/ stretch main
+###################################
+  tasks:
+#   - name: python
+#     raw: "apt update;  apt install -y python"
+
+   - name: Installing packages
+     apt:
+      name:
+        - vim
+        - wget
+        - htop
+        - tmux
+        - wget
+        - nginx
+        - apt-transport-https
+      state: latest
+      #force: yes
+      update_cache: true
+      
+   - name: Adding gpg key
+     get_url:
+       url: https://packages.sury.org/php/apt.gpg
+       dest: /etc/apt/trusted.gpg.d/php.gpg
+
+   - name: Add specified repository into sources list using specified filename
+     ansible.builtin.apt_repository:
+       repo: "{{ phprepoadd }}"
+       state: present
+       filename: php
+
+   - name: Update and upgrade apt packages
+     become: true
+     apt:
+       upgrade: yes
+
+   - name: Installing php-5.6
+     apt:
+      name:
+        - libapache2-mod-php5.6
+        - apache2
+      state: latest
+      update_cache: true
+
+   - name: Remove php-fpm
+     apt:
+      name:
+        - php5.6-fpm
+      state: absent      
+
+#ports.conf
+   - copy:
+      dest: /etc/apache2/ports.conf
+      content: "{{ ports }}"            
+#apache vhost
+   - copy:
+      dest: /etc/apache2/sites-available/000-default.conf
+      content: "{{ apache2defaultvhost }}"      
+#index.php   
+   - copy:
+      dest: /var/www/html/index.php
+      content: "{{ indexphp }}"
+#nginx vhost   
+   - copy:
+      dest: /etc/nginx/sites-enabled/default
+      content: "{{ nginxvhost }}"      
+
+   - name: Retart service nginx
+     service:
+      name: nginx
+      state: restarted
+   
+   - name: Retart service apache
+     service:
+      name: apache2
+      state: restarted
+    

@@ -1,0 +1,40 @@
+#ansible-playbook -i provisioning/inventory ansible-php5to7.yml
+- name: Update php 5.6 to 7.2 for apache2_mod, debian 9 (stretch)
+  hosts: samson
+  gather_facts: False
+  vars:
+   phprepoadd: deb https://packages.sury.org/php/ stretch main
+  tasks:
+  
+   - name: Adding gpg key
+     get_url:
+       url: https://packages.sury.org/php/apt.gpg
+       dest: /etc/apt/trusted.gpg.d/php.gpg
+   
+   - name: Add specified repository into sources list using specified filename
+     ansible.builtin.apt_repository:
+       repo: "{{ phprepoadd }}"
+       state: present
+       filename: php
+
+   - name: Installing php-7.2
+     apt:
+      name:
+        - libapache2-mod-php7.2
+        #- extensions
+      state: latest
+      update_cache: true
+   
+   - apache2_module:
+      state: absent
+      name: php5.6      
+
+   - apache2_module:
+      state: present
+      name: php7.2     
+  
+   - name: Reload service apache2
+     service:
+      name: apache2
+      state: reloaded
+    
